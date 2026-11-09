@@ -2,6 +2,7 @@
 **/__pycache__/
 **/*.py[co]
 **/graphify-out/
+packages/rmg-wasm/dist/
 
 config.toml
 /VERA.INI

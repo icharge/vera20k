@@ -1,0 +1,19 @@
+{
+  "name": "@vera20k/rmg-wasm",
+  "version": "0.1.0",
+  "description": "VERA20k's random map generator for TypeScript and browser apps",
+  "type": "module",
+  "private": true,
+  "files": ["dist"],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build:wasm": "python build.py",
+    "prepack": "python build.py"
+  }
+}

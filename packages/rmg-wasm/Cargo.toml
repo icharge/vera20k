@@ -1,0 +1,21 @@
+[package]
+name = "vera20k-rmg-wasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+wasm = ["vera20k-core/wasm"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2"
+vera20k-core = { path = "../../src" }
+
+[lints]
+workspace = true
