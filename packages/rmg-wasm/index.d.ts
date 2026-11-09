@@ -11,6 +11,8 @@ export interface RmgOptions {
   vegetation: number;
   urbanPresence: number;
   urbanEnabled: boolean;
+  /** Ares Urban Areas switch; available in this package's Ares-enabled WASM build. */
+  urbanAreas?: boolean;
   width: number;
   height: number;
   accessibility: number;
@@ -23,6 +25,37 @@ export interface RmgSettings {
   minTiberium: number;
   maxTiberium: number;
   maxTrees: number;
+  levelLight?: readonly number[];
+  temperateAmbient?: readonly number[];
+  snowAmbient?: readonly number[];
+  temperateRgb?: readonly [readonly number[], readonly number[], readonly number[]];
+  snowRgb?: readonly [readonly number[], readonly number[], readonly number[]];
+  /** Indexed by map type: archipelago, continent, team continent, inland, mountainous. */
+  vegetationMin?: readonly [number, number, number, number, number];
+  vegetationMax?: readonly [number, number, number, number, number];
+  /** Resolved BuildingType/InfantryType/UnitType data needed by urban generation. */
+  urbanCatalog?: RmgUrbanCatalog;
+  generateUrbanAreas?: boolean;
+  urbanStructures?: readonly string[];
+  urbanInfantry?: readonly string[];
+  urbanVehicles?: readonly string[];
+}
+
+export interface RmgUrbanCatalog {
+  structures?: readonly RmgUrbanStructure[];
+  infantry?: readonly RmgUrbanFoot[];
+  vehicles?: readonly RmgUrbanFoot[];
+}
+
+export interface RmgUrbanStructure {
+  name: string;
+  /** NW-anchor-relative foundation cells; null means unknown/not a BuildingType. */
+  footprint?: readonly (readonly [number, number])[] | null;
+}
+
+export interface RmgUrbanFoot {
+  name: string;
+  known: boolean;
 }
 
 export interface TheaterCliffRanges {
@@ -116,6 +149,8 @@ export interface GenerateRandomMapInput {
   resolvedTheater: ResolvedTheaterInputs;
   tileBlocks: readonly RmgTileBlock[];
   techTypes: readonly RmgTechType[];
+  /** Optional seed for the independent foot-type draw stream used by urban areas. */
+  urbanMainSeed?: number;
 }
 
 export interface GeneratedMapHeader {

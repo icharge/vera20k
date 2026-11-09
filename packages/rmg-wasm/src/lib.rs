@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,11 @@ use vera20k_core::map::rmg::RmgOptions;
 use vera20k_core::map::rmg::build::{self, ResolvedTheaterInputs};
 use vera20k_core::map::rmg::phases::shore::{SubTile, TileBlock, TileBlocks};
 use vera20k_core::map::rmg::phases::tech_buildings::TechType;
+use vera20k_core::map::rmg::phases::urban_areas::{
+    UrbanCatalog, UrbanFoot, UrbanInputs, UrbanStructure,
+};
 use vera20k_core::map::rmg::phases::zones::OverlayZoneFacts;
+use vera20k_core::map::rmg::rng::RmgRng;
 use vera20k_core::map::rmg::settings::RmgSettings;
 use vera20k_core::map::rmg::tiles::TileIds;
 use vera20k_core::map::theater::TheaterCliffRanges;
@@ -92,12 +97,17 @@ fn generate(request: GenerateRequest) -> Result<GeneratedMap, String> {
         morphable: request.resolved_theater.morphable,
         trig: Some(TrigTable::embedded()),
     };
-    let mut options = request.options.into_native();
+    let settings = request.settings.into_native();
+    let mut options = request.options.into_native(settings.generate_urban_areas);
     options.normalize();
-    let mut settings = RmgSettings::default();
-    settings.min_tiberium = request.settings.min_tiberium;
-    settings.max_tiberium = request.settings.max_tiberium;
-    settings.max_trees = request.settings.max_trees;
+    let urban_rng = RefCell::new(RmgRng::new(
+        request.urban_main_seed.unwrap_or(options.seed_u16()),
+    ));
+    let urban_draw = || urban_rng.borrow_mut().next_u32();
+    let urban_inputs = UrbanInputs {
+        catalog: &settings.vera_urban,
+        main_draw: &urban_draw,
+    };
     let tech_types = request
         .tech_types
         .into_iter()
@@ -116,7 +126,10 @@ fn generate(request: GenerateRequest) -> Result<GeneratedMap, String> {
         &settings,
         &resolved,
         &blocks,
-        &build::GenerationObjects::tech(&tech_types),
+        &build::GenerationObjects {
+            tech_types: &tech_types,
+            urban_areas: Some(urban_inputs),
+        },
     );
     Ok(GeneratedMap::from_native(
         generated.map_file,
@@ -133,6 +146,8 @@ struct GenerateRequest {
     resolved_theater: ResolvedTheaterInput,
     tile_blocks: Vec<TileBlockInput>,
     tech_types: Vec<TechTypeInput>,
+    #[serde(default)]
+    urban_main_seed: Option<u16>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -157,10 +172,12 @@ struct OptionsInput {
     seed: i32,
     #[serde(default)]
     description: String,
+    #[serde(default)]
+    urban_areas: Option<bool>,
 }
 
 impl OptionsInput {
-    fn into_native(self) -> RmgOptions {
+    fn into_native(self, default_urban_areas: bool) -> RmgOptions {
         RmgOptions {
             theater: self.theater,
             map_type: self.map_type,
@@ -180,16 +197,136 @@ impl OptionsInput {
             region_size: self.region_size,
             seed: self.seed,
             description: self.description.into(),
+            urban_areas: self.urban_areas.unwrap_or(default_urban_areas),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct SettingsInput {
+    min_tiberium: i32,
+    max_tiberium: i32,
+    max_trees: i32,
+    level_light: Option<Vec<i32>>,
+    temperate_ambient: Option<Vec<i32>>,
+    snow_ambient: Option<Vec<i32>>,
+    temperate_rgb: Option<[Vec<i32>; 3]>,
+    snow_rgb: Option<[Vec<i32>; 3]>,
+    vegetation_min: Option<[i32; 5]>,
+    vegetation_max: Option<[i32; 5]>,
+    #[serde(default)]
+    urban_catalog: UrbanCatalogInput,
+    #[cfg(feature = "ares")]
+    generate_urban_areas: Option<bool>,
+    #[cfg(feature = "ares")]
+    urban_structures: Option<Vec<String>>,
+    #[cfg(feature = "ares")]
+    urban_infantry: Option<Vec<String>>,
+    #[cfg(feature = "ares")]
+    urban_vehicles: Option<Vec<String>>,
+}
+
+impl SettingsInput {
+    fn into_native(self) -> RmgSettings {
+        let mut settings = RmgSettings::default();
+        settings.min_tiberium = self.min_tiberium;
+        settings.max_tiberium = self.max_tiberium;
+        settings.max_trees = self.max_trees;
+        if let Some(values) = self.level_light {
+            settings.level_light = values;
+        }
+        if let Some(values) = self.temperate_ambient {
+            settings.temperate_ambient = values;
+        }
+        if let Some(values) = self.snow_ambient {
+            settings.snow_ambient = values;
+        }
+        if let Some(values) = self.temperate_rgb {
+            settings.temperate_rgb = values;
+        }
+        if let Some(values) = self.snow_rgb {
+            settings.snow_rgb = values;
+        }
+        if let Some(values) = self.vegetation_min {
+            settings.vegetation_min = values;
+        }
+        if let Some(values) = self.vegetation_max {
+            settings.vegetation_max = values;
+        }
+        settings.vera_urban = self.urban_catalog.into_native();
+        #[cfg(feature = "ares")]
+        {
+            if let Some(value) = self.generate_urban_areas {
+                settings.generate_urban_areas = value;
+            }
+            if let Some(values) = self.urban_structures {
+                settings.urban_structures = values;
+            }
+            if let Some(values) = self.urban_infantry {
+                settings.urban_infantry = values;
+            }
+            if let Some(values) = self.urban_vehicles {
+                settings.urban_vehicles = values;
+            }
+        }
+        settings
+    }
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct UrbanCatalogInput {
+    structures: Vec<UrbanStructureInput>,
+    infantry: Vec<UrbanFootInput>,
+    vehicles: Vec<UrbanFootInput>,
+}
+
+impl UrbanCatalogInput {
+    fn into_native(self) -> UrbanCatalog {
+        UrbanCatalog {
+            structures: self
+                .structures
+                .into_iter()
+                .map(|item| UrbanStructure {
+                    name: item.name,
+                    footprint: item
+                        .footprint
+                        .map(|cells| cells.into_iter().map(|[x, y]| (x, y)).collect()),
+                })
+                .collect(),
+            infantry: self
+                .infantry
+                .into_iter()
+                .map(|item| UrbanFoot {
+                    name: item.name,
+                    known: item.known,
+                })
+                .collect(),
+            vehicles: self
+                .vehicles
+                .into_iter()
+                .map(|item| UrbanFoot {
+                    name: item.name,
+                    known: item.known,
+                })
+                .collect(),
         }
     }
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SettingsInput {
-    min_tiberium: i32,
-    max_tiberium: i32,
-    max_trees: i32,
+struct UrbanStructureInput {
+    name: String,
+    footprint: Option<Vec<[i16; 2]>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UrbanFootInput {
+    name: String,
+    known: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -543,6 +680,61 @@ mod tests {
         assert!(error.starts_with("invalid random-map input:"));
     }
 
+    #[test]
+    fn ares_urban_options_and_resolved_catalog_reach_the_core() {
+        let mut request = sample_request();
+        request.options.urban_areas = None;
+        request.settings.generate_urban_areas = Some(true);
+        request.settings.urban_structures = Some(vec!["CABUNK01".to_string()]);
+        request.settings.level_light = Some(vec![0, 1, 2, 3]);
+        request.settings.vegetation_min = Some([10, 20, 30, 40, 50]);
+        request.settings.urban_catalog.structures = vec![UrbanStructureInput {
+            name: "CABUNK01".to_string(),
+            footprint: Some(vec![[0, 0], [1, 0], [0, 1], [1, 1]]),
+        }];
+
+        let settings = request.settings.into_native();
+        let options = request.options.into_native(settings.generate_urban_areas);
+
+        assert!(options.urban_areas);
+        assert!(settings.generate_urban_areas);
+        assert_eq!(settings.urban_structures, ["CABUNK01"]);
+        assert_eq!(settings.level_light, [0, 1, 2, 3]);
+        assert_eq!(settings.vegetation_min, [10, 20, 30, 40, 50]);
+        assert_eq!(settings.vera_urban.structures[0].name, "CABUNK01");
+        assert_eq!(
+            settings.vera_urban.structures[0].footprint.as_deref(),
+            Some(&[(0, 0), (1, 0), (0, 1), (1, 1)][..])
+        );
+
+        let mut explicit_off = sample_request().options;
+        explicit_off.urban_areas = Some(false);
+        assert!(!explicit_off.into_native(true).urban_areas);
+    }
+
+    #[test]
+    fn extended_size_and_player_options_survive_the_public_input_projection() {
+        let mut input = sample_request().options;
+        input.map_type = 0;
+        input.theater = 4;
+        input.num_players = 30;
+        input.width = 7;
+        input.height = 7;
+        input.urban_presence = 80;
+        input.urban_enabled = true;
+
+        let mut options = input.into_native(false);
+        options.normalize();
+
+        assert_eq!(options.num_players, 30);
+        assert_eq!((options.width, options.height), (7, 7));
+        assert!(options.urban_enabled);
+        assert_eq!(
+            vera20k_core::map::rmg::generated_dimensions(&options),
+            (500, 500)
+        );
+    }
+
     fn sample_request() -> GenerateRequest {
         let make_block = |tile| TileBlockInput {
             tile,
@@ -574,11 +766,13 @@ mod tests {
                 region_size: 0,
                 seed: 1234,
                 description: String::new(),
+                urban_areas: None,
             },
             settings: SettingsInput {
                 min_tiberium: 2500,
                 max_tiberium: 5500,
                 max_trees: 500,
+                ..SettingsInput::default()
             },
             resolved_theater: ResolvedTheaterInput {
                 tile_ids: TileIdsInput {
@@ -625,6 +819,7 @@ mod tests {
                 .map(make_block)
                 .collect(),
             tech_types: Vec::new(),
+            urban_main_seed: None,
         }
     }
 }

@@ -40,7 +40,7 @@ def main() -> None:
     }
     subprocess.run([
         sys.executable, '-m', 'tools.cargo_run', '--', 'build', '--locked', '--release',
-        '-p', 'vera20k-rmg-wasm', '--target', 'wasm32-unknown-unknown', '--features', 'wasm',
+        '-p', 'vera20k-rmg-wasm', '--target', 'wasm32-unknown-unknown', '--features', 'wasm,ares',
     ], cwd=ROOT, env=env, check=True)
     binary = target / 'wasm32-unknown-unknown' / 'release' / 'vera20k_rmg_wasm.wasm'
     if not binary.is_file():

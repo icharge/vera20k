@@ -8,8 +8,9 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = []
+default = ["ares"]
 wasm = ["vera20k-core/wasm"]
+ares = ["vera20k-core/ares"]
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
