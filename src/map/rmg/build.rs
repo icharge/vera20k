@@ -675,6 +675,40 @@ mod tests {
         }
     }
 
+    /// Lunar is enabled at index 5 as a host-supplied theater. Its theater data
+    /// has no water/shore/road families, so only the inland and mountainous
+    /// map types place all eight starts; the water-dependent types stay short.
+    #[test]
+    #[ignore = "slow; run when changing what it covers"]
+    fn lunar_generates_for_the_land_map_types() {
+        let Some((settings, resolved, blocks)) = retail_inputs_for("LUNAR") else {
+            return;
+        };
+        assert_eq!(resolved.ids.cliffs.waterfall_bases(), [-1; 4]);
+        for map_type in [3, 4] {
+            let options = RmgOptions {
+                num_players: 8,
+                ..options(map_type, 5)
+            };
+            let generated = generate_map(
+                &options,
+                &settings,
+                &resolved,
+                &blocks,
+                &GenerationObjects::tech(&[]),
+            );
+            assert_eq!(generated.map_file.header.theater, "LUNAR");
+            assert_eq!(
+                (
+                    generated.unfilled_start_slots,
+                    generated.start_waypoints.len(),
+                ),
+                (0, 8),
+                "LUNAR map type {map_type}"
+            );
+        }
+    }
+
     /// VERA extension: an opted-in Urban Presence runs the urban pass
     /// (`0x005A5020`) in any build with VERA's catalogue: paved roads,
     /// civilian buildings of the theater's style families and foots, every one

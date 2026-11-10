@@ -39,6 +39,7 @@ pub fn theater_name(theater: i32) -> &'static str {
         2 => "URBAN",
         3 => "DESERT",
         4 => "NEWURBAN",
+        5 => "LUNAR",
         _ => "TEMPERATE",
     }
 }
@@ -217,6 +218,7 @@ mod tests {
         assert_eq!(theater_name(2), "URBAN");
         assert_eq!(theater_name(3), "DESERT");
         assert_eq!(theater_name(4), "NEWURBAN");
+        assert_eq!(theater_name(5), "LUNAR");
         assert_eq!(
             theater_name(99),
             "TEMPERATE",
