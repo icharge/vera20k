@@ -47,6 +47,23 @@ export interface RmgUrbanCatalog {
   vehicles?: readonly RmgUrbanFoot[];
 }
 
+/**
+ * Ares' `[Urban]` foot defaults and VERA's urban-catalog filters, mirrored from
+ * `src/map/rmg/tech_catalog.rs::resolve_vera_urban`. A host builds `urbanCatalog` by
+ * resolving these names against its rules and art: a structure needs its footprint,
+ * a foot is `known` when its rules section exists.
+ */
+export interface VeraUrbanRules {
+  /** Building-type prefixes the urban pass draws from. */
+  readonly structurePrefixes: readonly string[];
+  /** Lower-cased `Name=` words that keep a building out of the civilian families. */
+  readonly setApartWords: readonly string[];
+  readonly infantry: readonly string[];
+  readonly vehicles: readonly string[];
+}
+
+export const VERA_URBAN_RULES: VeraUrbanRules;
+
 export interface RmgUrbanStructure {
   name: string;
   /** NW-anchor-relative foundation cells; null means unknown/not a BuildingType. */

@@ -5,11 +5,15 @@ generator as browser WebAssembly; it does not include game assets or duplicate g
 
 The host loads its own game installation and prepares the resolved theater/rules input. This keeps
 FA2Web's existing VFS authoritative for loose-file and archive overrides. The package compiles the
-current VERA20k generator, including its 30-player and 500×500 size support, Archipelago/Urban/Desert
-generation, advanced sliders, Urban Presence towns, and Ares Urban Areas support. The host passes
-these settings and resolved theater data through the types in [`index.d.ts`](index.d.ts); the result
-contains typed map geometry, placements, and starts. FA2Web can project that result into its
-`MapDocument` and use its existing `.map` serializer.
+current VERA20k generator, including its 30-player and 500×500 size support, Archipelago and the
+Urban, Desert, NewUrban and Lunar theaters, advanced sliders, Urban Presence towns, and Ares Urban
+Areas support. The host passes these settings and resolved theater data through the types in
+[`index.d.ts`](index.d.ts); the result contains typed map geometry, placements, and starts. FA2Web
+can project that result into its `MapDocument` and use its existing `.map` serializer.
+
+`VERA_URBAN_RULES` carries the urban catalog's own selection rules — the Ares `[Urban]` foot
+defaults and the building prefixes and `Name=` words the urban pass excludes — so a host can build
+`settings.urbanCatalog` from its rules and art without duplicating them.
 
 The caller supplies full `RMGMD.INI`-derived settings when available. Missing optional lighting,
 vegetation, and urban fields use the core constructor defaults. For reproducible urban-foot choices,

@@ -1,6 +1,6 @@
 {
   "name": "@vera20k/rmg-wasm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "VERA20k's random map generator for TypeScript and browser apps",
   "type": "module",
   "private": true,
